@@ -1,5 +1,5 @@
 import os
-from typing import Any, List, Sequence, Set, Union
+from typing import Any, List, Sequence, Set, Tuple, Type, Union, Generator
 
 import pygraphviz as pgv
 
@@ -55,6 +55,10 @@ class Edge:
             "odot" if self.source_field.is_nullable() or self.source_field.is_many() else "tee"
         )
         return cardinality + modality
+
+    def plantuml_aggregate(self) -> str:
+        """Return the aggregate relationships in PlantUML format"""
+        return f"{self.source.name} o-- {self.target.name}"
 
     def __hash__(self) -> int:
         return hash((self.source, self.source_field, self.target))
@@ -146,6 +150,32 @@ class EntityRelationshipDiagram:
         """
         return self.graph().string()
 
+    def to_plantuml(self, include_inheritance: bool = True) -> str:
+        """Generate a [PlantUML class diagram](https://plantuml.com/class-diagram) representation
+        of entity relationship diagram for given data model classes.
+
+        Args:
+            include_inheritance (bool): Whether to include the inheritance relationships. Default is true
+
+        Returns:
+            str: PlantUML spec of diagram
+        """
+        lines: List[str] = ["@startuml", ""]
+        lines.extend([model.plantuml_spec() for model in self.models])
+        lines.append("")
+        lines.extend([edge.plantuml_aggregate() for edge in self.edges])
+        lines.append("")
+        if include_inheritance:
+            lines.extend(
+                [
+                    f"{cls.name} <|-- {supercls.name}"
+                    for cls, supercls in self.inheritance_relationships()
+                ]
+            )
+            lines.append("")
+        lines.append("@enduml")
+        return "\n".join(lines)
+
     def __hash__(self) -> int:
         return hash((tuple(self.models), tuple(self.edges)))
 
@@ -164,6 +194,14 @@ class EntityRelationshipDiagram:
     def _repr_svg_(self) -> str:
         graph = self.graph()
         return graph.draw(prog="dot", format="svg").decode(graph.encoding)
+
+    def inheritance_relationships(self) -> Generator[Tuple["Model", "Model"], None, None]:
+        """Returns a generator of pairs of models with the first inheriting from the second"""
+        model_map = {model.model: model for model in self.models}
+        for model in self.models:
+            for superclass in model.model.__mro__:
+                if superclass in model_map and superclass is not model.model:
+                    yield (model, model_map[superclass])
 
 
 def create(*models: type, termini: Sequence[type] = []) -> EntityRelationshipDiagram:

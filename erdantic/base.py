@@ -75,6 +75,10 @@ class Field(ABC, Generic[FT]):
         """
         return _row_template.format(name=self.name, type_name=self.type_name)
 
+    def plantuml_row(self) -> str:
+        prefix = "-" if self.name.startswith("_") else "+"
+        return f"{prefix}{self.type_name} {self.name}"
+
     def __eq__(self, other: Any) -> bool:
         return isinstance(other, type(self)) and hash(self) == hash(other)
 
@@ -162,6 +166,15 @@ class Model(ABC, Generic[MT]):
         """
         rows = "\n".join(field.dot_row() for field in self.fields)
         return _table_template.format(name=self.name, rows=rows).replace("\n", "")
+
+    def plantuml_spec(self) -> str:
+        """Returns the PlantUML spec for this model"""
+        lines = [f"class {self.name} {{"]
+        if self.model.__doc__:
+            lines += [f"  {self.model.__doc__.strip()}", "  =="]
+        lines += [f"  {field.plantuml_row()}" for field in self.fields]
+        lines.append("}")
+        return "\n".join(lines)
 
     def __eq__(self, other) -> bool:
         return isinstance(other, type(self)) and hash(self) == hash(other)
