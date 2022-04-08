@@ -199,8 +199,8 @@ class EntityRelationshipDiagram:
         """Returns a generator of pairs of models with the first inheriting from the second"""
         model_map = {model.model: model for model in self.models}
         for model in self.models:
-            for superclass in model.model.__mro__:
-                if superclass in model_map and superclass is not model.model:
+            for superclass in model.model.__mro__[1:]:
+                if superclass in model_map:
                     yield (model, model_map[superclass])
 
 
