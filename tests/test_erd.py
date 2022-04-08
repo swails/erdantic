@@ -1,5 +1,6 @@
 import filecmp
 import imghdr
+from pydantic import BaseModel
 
 import pytest
 
@@ -18,6 +19,16 @@ def test_diagram_comparisons():
     assert diagram1 in [diagram2]
     assert diagram1 in {diagram2}
     assert diagram1 not in [diagram3]
+
+
+def test_plantuml_generation():
+    diagram = erd.create(Party, BaseModel)
+    uml_inh = diagram.to_plantuml(include_inheritance=True)
+    uml = diagram.to_plantuml(include_inheritance=False)
+
+    assert len(uml_inh) > len(uml)
+    assert uml_inh.startswith("@startuml")
+    assert uml_inh.endswith("@enduml")
 
 
 def test_edge_comparisons():
